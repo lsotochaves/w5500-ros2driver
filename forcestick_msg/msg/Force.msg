@@ -1,0 +1,6 @@
+float64 force_frontal_1
+float64 force_frontal_2
+float64 force_upper
+float64 force_lateral
+float64 torque_frontal_1
+float64 torque_frontal_2
