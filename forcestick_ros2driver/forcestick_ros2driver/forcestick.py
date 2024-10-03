@@ -24,13 +24,14 @@ class OpenCoRoCo(object):
         self.connected = False
 
         # Variables for force data processing
-        self.values = [0, 0, 0, 0, 0, 0]
-        self.force_frontal_1 = self.values[0]
-        self.force_frontal_2 = self.values[1]
-        self.force_upper = self.values[2]
-        self.force_lateral = self.values[3]
-        self.torque_frontal_1 = self.values[4]
-        self.torque_frontal_2 = self.values[5]
+        self.values = [0, 0, 0, 0, 0, 0, 0]
+        self.fx_my_1 = self.values[0]
+        self.fx_my_2 = self.values[1]
+        self.fy_mx_1 = self.values[2]
+        self.fy_mx_2 = self.values[3]
+        self.mz = self.values[4]
+        self.fz_1 = self.values[5]
+        self.fz_2 = self.values[6]
         self.raw_values = ""
         # The fit curve is a linear equation y = ax
         # Each element corresponds to an axis
@@ -43,7 +44,7 @@ class OpenCoRoCo(object):
             0.027715361973854,
             0.009115448082126
         ]
-        self.offset = [0, 0, 0, 0, 0, 0]
+        self.offset = [0, 0, 0, 0, 0, 0, 0]
         self.initialize = False
         self.offset_init = False
         self.init_counter = 0
@@ -77,7 +78,7 @@ class OpenCoRoCo(object):
         self.raw_values = self.serial_device.read_until().decode()
         self.raw_values = self.raw_values.replace("\r", "").replace("\n", "")
         self.raw_values = self.raw_values.split(",")
-        if len(self.raw_values) == 6:
+        if len(self.raw_values) == 7:
             if not self.initialize:
                 self.initialize = True
                 updated = False
@@ -85,12 +86,13 @@ class OpenCoRoCo(object):
                 for i in range(0, len(self.raw_values)):
                     self.values[i] = int(self.raw_values[i])
                     self.values[i] *= 3/4095
-                self.force_frontal_1 = self.values[0]
-                self.force_frontal_2 = self.values[1]
-                self.force_upper = self.values[2]
-                self.force_lateral = self.values[3]
-                self.torque_frontal_1 = self.values[4]
-                self.torque_frontal_2 = self.values[5]
+                self.fx_my_1 = self.values[0]
+                self.fx_my_2 = self.values[1]
+                self.fy_mx_1 = self.values[2]
+                self.fy_mx_2 = self.values[3]
+                self.mz = self.values[4]
+                self.fz_1 = self.values[5]
+                self.fz_2 = self.values[6]
                 updated = True
             # if not self.initialize and not self.offset_init:
             #     self.initialize = True
@@ -149,31 +151,35 @@ class ForcestickPublisher(Node):
                 str(value) for value in self.opencoroco.values
             )
             force_msg = Force()
-            force_msg.force_frontal_1 = self.opencoroco.force_frontal_1
-            force_msg.force_frontal_2 = self.opencoroco.force_frontal_2
-            force_msg.force_upper = self.opencoroco.force_upper
-            force_msg.force_lateral = self.opencoroco.force_lateral
-            force_msg.torque_frontal_1 = self.opencoroco.torque_frontal_1
-            force_msg.torque_frontal_2 = self.opencoroco.torque_frontal_2
+            force_msg.fx_my_1 = self.opencoroco.fx_my_1
+            force_msg.fx_my_2 = self.opencoroco.fx_my_2
+            force_msg.fy_mx_1 = self.opencoroco.fy_mx_1
+            force_msg.fy_mx_2 = self.opencoroco.fy_mx_2
+            force_msg.mz = self.opencoroco.mz
+            force_msg.fz_1 = self.opencoroco.fz_1
+            force_msg.fz_2 = self.opencoroco.fz_2
 
             self.force_publisher.publish(force_msg)
             self.get_logger().info(
-                f"Force frontal 1: {str(force_msg.force_frontal_1)}"
+                f"Fx My 1: {str(force_msg.fx_my_1)}"
             )
             self.get_logger().info(
-                f"Force frontal 2: {str(force_msg.force_frontal_2)}"
+                f"Fx My 2: {str(force_msg.fx_my_2)}"
             )
             self.get_logger().info(
-                f"Force upper: {str(force_msg.force_upper)}"
+                f"Fy Mx 1: {str(force_msg.fy_mx_1)}"
             )
             self.get_logger().info(
-                f"Force lateral: {str(force_msg.force_lateral)}"
+                f"Fy Mx 2: {str(force_msg.fy_mx_2)}"
             )
             self.get_logger().info(
-                f"Torque frontal 1: {str(force_msg.torque_frontal_1)}"
+                f"Mz: {str(force_msg.mz)}"
             )
             self.get_logger().info(
-                f"Torque frontal 2: {str(force_msg.torque_frontal_2)}"
+                f"Fz 1: {str(force_msg.fz_1)}"
+            )
+            self.get_logger().info(
+                f"Fz 2: {str(force_msg.fz_2)}"
             )
             record.append(record_data)
 
@@ -181,7 +187,7 @@ class ForcestickPublisher(Node):
 def output_record(record):
     record = record[:1000]
     with open("output.csv", "w") as f:
-        f.write("Timestamp,Ff1,Ff2,Fu,Fl,Tf1,Tf2\n")
+        f.write("Timestamp,fxmy1,fxmy2,fymx1,fymx2,mz,fz1,fz2\n")
         for item in record:
             f.write(f"{item}\n")
 
