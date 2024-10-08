@@ -26,9 +26,9 @@ class OpenCoRoCo(object):
         # Variables for force data processing
         self.values = [0, 0, 0, 0, 0, 0, 0]
         self.fx_my_1 = self.values[0]
-        self.fx_my_2 = self.values[1]
-        self.fy_mx_1 = self.values[2]
-        self.fy_mx_2 = self.values[3]
+        self.fy_mx_1 = self.values[1]
+        self.fy_mx_2 = self.values[2]
+        self.fx_my_2 = self.values[3]
         self.mz = self.values[4]
         self.fz_1 = self.values[5]
         self.fz_2 = self.values[6]
@@ -87,9 +87,9 @@ class OpenCoRoCo(object):
                     self.values[i] = int(self.raw_values[i])
                     self.values[i] *= 3/4095
                 self.fx_my_1 = self.values[0]
-                self.fx_my_2 = self.values[1]
-                self.fy_mx_1 = self.values[2]
-                self.fy_mx_2 = self.values[3]
+                self.fy_mx_1 = self.values[1]
+                self.fy_mx_2 = self.values[2]
+                self.fx_my_2 = self.values[3]
                 self.mz = self.values[4]
                 self.fz_1 = self.values[5]
                 self.fz_2 = self.values[6]
@@ -152,9 +152,9 @@ class ForcestickPublisher(Node):
             )
             force_msg = Force()
             force_msg.fx_my_1 = self.opencoroco.fx_my_1
-            force_msg.fx_my_2 = self.opencoroco.fx_my_2
             force_msg.fy_mx_1 = self.opencoroco.fy_mx_1
             force_msg.fy_mx_2 = self.opencoroco.fy_mx_2
+            force_msg.fx_my_2 = self.opencoroco.fx_my_2
             force_msg.mz = self.opencoroco.mz
             force_msg.fz_1 = self.opencoroco.fz_1
             force_msg.fz_2 = self.opencoroco.fz_2
@@ -164,13 +164,13 @@ class ForcestickPublisher(Node):
                 f"Fx My 1: {str(force_msg.fx_my_1)}"
             )
             self.get_logger().info(
-                f"Fx My 2: {str(force_msg.fx_my_2)}"
-            )
-            self.get_logger().info(
                 f"Fy Mx 1: {str(force_msg.fy_mx_1)}"
             )
             self.get_logger().info(
                 f"Fy Mx 2: {str(force_msg.fy_mx_2)}"
+            )
+            self.get_logger().info(
+                f"Fx My 2: {str(force_msg.fx_my_2)}"
             )
             self.get_logger().info(
                 f"Mz: {str(force_msg.mz)}"
