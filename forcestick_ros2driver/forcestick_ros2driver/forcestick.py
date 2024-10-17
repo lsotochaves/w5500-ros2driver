@@ -185,9 +185,9 @@ class ForcestickPublisher(Node):
 
 # Function to store the recorded force data in a csv file
 def output_record(record):
-    record = record[:1000]
+    #record = record[:1000]
     with open("output.csv", "w") as f:
-        f.write("Timestamp,fxmy1,fxmy2,fymx1,fymx2,mz,fz1,fz2\n")
+        f.write("Timestamp,fxmy1,fymx1,fymx2,fxmy2,mz,fz1,fz2\n")
         for item in record:
             f.write(f"{item}\n")
 
