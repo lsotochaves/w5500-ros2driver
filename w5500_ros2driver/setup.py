@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'forcestick_ros2driver'
+package_name = 'w5500_ros2driver'
 
 setup(
     name=package_name,
@@ -13,14 +13,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Kevin Chen Wu',
-    maintainer_email='hongwenchen.k.c.w.90@gmail.com',
-    description='ROS2 node package for OpenCoRoCo: forcestick_ros2driver',
+    maintainer='Danny Gutiérrez Campos y Luis Diego Soto',
+    maintainer_email='dannyjgc07@gmail.com y ls.sotochaves@gmail.com',
+    description='ROS2 node package for OpenCoRoCo: w5500_ros2driver',
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        	'force_publisher = forcestick_ros2driver.forcestick:main',
+        	'force_publisher = w5500_ros2driver.forcestick:main',
         ],
     },
 )
