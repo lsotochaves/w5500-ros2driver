@@ -3,7 +3,7 @@
 <package format="3">
   <name>w5500_ros2driver</name>
   <version>0.0.0</version>
-  <description>ROS2 node package for OpenCoRoCo: forcestick_ros2driver</description>
+  <description>ROS2 node package for OpenCoRoCo: w5500_ros2driver</description>
   <maintainer email="dannyjgc07@gmail">Danny Gutierrez</maintainer>
   <mantainer email="ls.sotochaves@gmail.com">Luis Diego Soto</mantainer>
   <license>Apache License 2.0</license>
