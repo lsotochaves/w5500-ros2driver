@@ -6,7 +6,7 @@ import sys
 import time
 import rclpy
 from rclpy.node import Node
-from forcestick_msg.msg import Force
+from w5500_msg.msg import Force
 
 record = []
 # openCoRoCo interface, which connects the microcontroler to
