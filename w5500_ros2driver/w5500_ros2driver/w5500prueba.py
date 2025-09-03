@@ -33,7 +33,6 @@ class OpenCoRoCo(object):
         self.stopbits = None
         self.timeout = None
         self.connected = False
-        self.values = [0, 0, 0, 0, 0, 0, 0]
         self.all_threads = []
 
         # --- atributos para servidor TCP ---
@@ -43,7 +42,7 @@ class OpenCoRoCo(object):
         self.server_thread = None
         self.conn = None
         self.addr = None
-        self.buf = bytearray[]
+        self.buf = bytearray()
 
         # Variables for force data processing
         self.values = [0, 0, 0, 0, 0, 0, 0]
@@ -292,7 +291,7 @@ signal.signal(signal.SIGTERM, terminate_handler)
 
 def main():
     opencoroco = OpenCoRoCo()
-    opencoroco.connect()
+    opencoroco.connect_tcp()
     rclpy.init()
     force_joint = ForcestickPublisher(opencoroco)
     rclpy.spin(force_joint)
