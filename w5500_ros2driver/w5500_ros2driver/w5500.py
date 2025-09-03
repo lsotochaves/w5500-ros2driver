@@ -155,9 +155,15 @@ class ForcestickPublisher(Node):
     def timer_callback(self):
         if self.opencoroco.get_forces():
             record_data = str(time.time() - self.init_time) + ","
+            # Calcula el tiempo relativo desde que se inició el nodo
+            # Lo convierte en string y le agrega una coma
+            # Este será el comienzo de una línea de datos
             record_data += ",".join(
                 str(value) for value in self.opencoroco.values
             )
+            # Recorre la lista self.opencoroco.values 
+            # que contiene los 7 valores crudos de fuerza
+            # record_data queda tipo "0.123456,10,20,30,40,50,60,70"
             force_msg = Force()
             force_msg.fx_my_1 = self.opencoroco.fx_my_1
             force_msg.fy_mx_1 = self.opencoroco.fy_mx_1
@@ -168,6 +174,8 @@ class ForcestickPublisher(Node):
             force_msg.fz_2 = self.opencoroco.fz_2
 
             self.force_publisher.publish(force_msg)
+            # Publica el mensaje force_msg en el tópico "force".
+            # Cualquier nodo suscrito a "force" recibirá estos datos en tiempo real
             self.get_logger().info(
                 f"Fx My 1: {str(force_msg.fx_my_1)}"
             )
@@ -190,7 +198,9 @@ class ForcestickPublisher(Node):
                 f"Fz 2: {str(force_msg.fz_2)}"
             )
             record.append(record_data)
-
+            # Manda un mensaje al log de ROS2 mostrando los valores publicados
+            # self.get_logger().info(...) imprime en consola con nivel INFO
+            
 # Function to store the recorded force data in a csv file
 def output_record(record):
     #record = record[:1000]
