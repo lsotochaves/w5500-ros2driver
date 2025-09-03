@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-#https://stackoverflow.com/questions/68425239/how-to-handle-multithreading-with-sockets-in-python
-
 import serial #Librería para manejo de puertos seriales
 import signal
 import sys
