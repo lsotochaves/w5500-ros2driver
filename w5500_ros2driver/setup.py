@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        	'force_publisher = w5500_ros2driver.forcestick:main',
+        	'force_publisher = w5500_ros2driver.w5500:main',
         ],
     },
 )

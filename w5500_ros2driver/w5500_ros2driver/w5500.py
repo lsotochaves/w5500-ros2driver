@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
 
+#https://stackoverflow.com/questions/68425239/how-to-handle-multithreading-with-sockets-in-python
+
 import serial #Librería para manejo de puertos seriales
 import signal
 import sys
 import time
+import socket
+import threading
 import rclpy #Librer´ia que permite trabajar con Ros2
 from rclpy.node import Node
 from w5500_msg.msg import Force
+number_clients = 5
+  
+"""
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind((host, port))
+s.listen(number_clients) 
+"""
 
 record = []
 # openCoRoCo interface, which connects the microcontroler to
@@ -15,14 +27,22 @@ class OpenCoRoCo(object):
     # Constructor, initialize the arguments
     def __init__(self):
         # Params of serial port connection
-        self.port_name = None #nombre del puerto serial
-        self.baudrate = None #velocidad de transmisión en baudios
-        self.bytesize = None #tamaño de los datos en bits
-        self.parity = None #bit de paridad
-        self.stopbits = None #número de bits de parada
-        self.timeout = None #tiempo de espera para leer datos
-        #bandera (True/False) para saber si la conexión serial ya está activa
-        self.connected = False 
+        self.baudrate = None
+        self.bytesize = None
+        self.parity = None
+        self.stopbits = None
+        self.timeout = None
+        self.connected = False
+        self.all_threads = []
+
+        # --- atributos para servidor TCP ---
+        self.host = "0.0.0.0"  # escuchar en todas las interfaces
+        self.port = 5000       # puerto TCP
+        self.server_socket = None
+        self.server_thread = None
+        self.conn = None
+        self.addr = None
+        self.buf = bytearray()
 
         # Variables for force data processing
         self.values = [0, 0, 0, 0, 0, 0, 0]
@@ -52,91 +72,141 @@ class OpenCoRoCo(object):
         self.init_counter = 0
         self.offset_init_counter = 0
 
-    # Function to connect to the serial port
-    def connect(self, port_name="/dev/ttyACM1", baudrate=115200, bytesize=8,
-                parity="N", stopbits=1, timeout=None):
-        # Guardar los parámetros en atributos del objeto
-        self.port_name = port_name
-        self.baudrate = baudrate
-        self.bytesize = bytesize
-        self.parity = parity
-        self.stopbits = stopbits
-        self.timeout = timeout
-        print(f"Connecting to {self.port_name} ...")
-        #Creación del objeto serial.Serial
-        self.serial_device = serial.Serial(
-            port=self.port_name,
-            baudrate=self.baudrate,
-            bytesize=self.bytesize,
-            parity=self.parity,
-            stopbits=self.stopbits,
-            timeout=self.timeout
-        )
-        print(f"Connected to {self.serial_device.portstr}")
+    """
+    def start_server(self):
+        # Crear socket TCP
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(number_clients)
+        print(f"Server listening on {self.host}:{self.port}")
+
+        # Thread principal para aceptar clientes
+        server_thread = threading.Thread(target=self.accept_clients, daemon=True)
+        server_thread.start()
         self.connected = True
+    
+    def accept_clients(self):
+        while True:
+            conn, addr = self.server_socket.accept()
+            print(f"Client connected: {addr}")
+            t = threading.Thread(target=self.get_forces, args=(conn, addr), daemon=True)
+            t.start()
+            self.all_threads.append(t)
+    """
+
+    def connect_tcp(self, host="0.0.0.0", port=5000, backlog=1):
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Reusar puerto si reinicias rápido
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind((host, port))
+        srv.listen(backlog)
+        print(f"TCP server escuchando en {host}:{port} ...")
+        self.conn, self.addr = srv.accept()
+        print(f"Conectado con {self.addr}")
+        # No bloqueante para no trabar el timer de ROS2
+        self.conn.setblocking(False)
+        self.buf.clear()
 
     # Function to get force data from serial port and
     # processes it
+    """
     def get_forces(self):
-        updated = False #bandera para indicaron si los valores de fuerza se actualizaron
-        self.raw_values = self.serial_device.read_until().decode()
-        # self.serial_device.read_until(): lee datos crudos desde el puerto serial 
-        # hasta encontrar un terminador (por defecto \n o \r\n)
-        # decode(): convierte esos bytes leídos en un string de Python.
-        self.raw_values = self.raw_values.replace("\r", "").replace("\n", "")
-        self.raw_values = self.raw_values.split(",")
-        if len(self.raw_values) == 7:
-            if not self.initialize:
-                self.initialize = True
-                updated = False
-            else:
-                for i in range(0, len(self.raw_values)):
-                    self.values[i] = int(self.raw_values[i])
-                    # Convierte cada string en número entero con int()
-                    self.values[i] *= 3/4095
+
+        #Genera un buffer en el que se pueden manipular bytes
+        buf = bytearray()
+        updated = False  # estado inicial
+
+        try:
+            while True:
+                received = conn.recv(1024)
+                if not received:
+                    break
+                
+                buf.extend(received)
+
+                while len(buf) >= 14:
+                    frame = buf[:14]
+                    buf = buf[14:]
+
+                    readings = []
+                    for i in range(7):
+                        msb = frame[2*i]       # first byte of the pair
+                        lsb = frame[2*i + 1]   # second byte of the pair
+                        value = (msb << 8) | lsb   # combine into uint16
+                        value &= 0x0FFF            # keep only lower 12 bits
+                        readings.append(value)
+
+                    for i in range(7):
+                        self.values[i] = readings[i] * (3.0 / 4095.0)
+
+                    self.fx_my_1 = self.values[0]
+                    self.fy_mx_1 = self.values[1]
+                    self.fy_mx_2 = self.values[2]
+                    self.fx_my_2 = self.values[3]
+                    self.mz = self.values[4]
+                    self.fz_1 = self.values[5]
+                    self.fz_2 = self.values[6]
+        
+                    updated = True
+
+        except Exception as e:
+            print(f"Error en get_forces con {addr}: {e}")
+        finally:
+            return updated
+        """
+    def get_forces(self):
+        updated = False
+
+        if self.conn is None:
+            return False  # aún no hay conexión
+
+        try:
+            try:
+                chunk = self.conn.recv(1024)
+                if chunk == b'':                 # peer cerró
+                    self.conn.close()
+                    self.conn = None
+                    self.buf.clear()
+                    return False
+            except (BlockingIOError, TimeoutError):
+                chunk = b''
+            except ConnectionResetError:
+                self.conn = None
+                self.buf.clear()
+                return False
+
+            if chunk:
+                self.buf.extend(chunk)
+
+            # Procesa todos los frames completos disponibles
+            while len(self.buf) >= 14:
+                frame = self.buf[:14]
+                del self.buf[:14]
+
+                readings = []
+                for i in range(7):
+                    msb = frame[2*i]
+                    lsb = frame[2*i + 1]
+                    val = ((msb << 8) | lsb) & 0x0FFF
+                    readings.append(val)
+
+                for i in range(7):
+                    self.values[i] = readings[i] * (3.0 / 4095.0)
+
                 self.fx_my_1 = self.values[0]
                 self.fy_mx_1 = self.values[1]
                 self.fy_mx_2 = self.values[2]
                 self.fx_my_2 = self.values[3]
-                self.mz = self.values[4]
-                self.fz_1 = self.values[5]
-                self.fz_2 = self.values[6]
-                updated = True # marca updated = True para indicar que los datos fueron procesados
-            # if not self.initialize and not self.offset_init:
-            #     self.initialize = True
-            #     updated = False
-            #     self.init_counter += 1
-            #     print(f"The force driver is initialized")
-            # elif self.initialize and not self.offset_init:
-            #     if self.init_counter < 10:
-            #         self.init_counter += 1
-            #     else:
-            #         if self.offset_init_counter < 100:
-            #             for i in range(0, len(self.raw_values)):
-            #                 self.values[i] = int(self.raw_values[i])
-            #                 self.values[i] *= 3/4095
-            #                 self.offset[i] += self.values[i] ** 2
-            #             self.offset_init_counter += 1
-            #         else:
-            #             for i in range(0, len(self.raw_values)):
-            #                 self.offset[i] = (self.offset[i]/100) ** (1/2)
-            #             self.offset_init = True
-            #             print(f"The force driver is set up")
-            #             print(f"The force driver will start reading force data")
-            #         updated = False
-            # elif self.initialize and self.offset_init:
-            #     for i in range(0, len(self.raw_values)):
-            #         self.values[i] = int(self.raw_values[i])
-            #         self.values[i] *= 3/4095
-            #         self.values[i] -= self.offset[i]
-            #         self.values[i] /= self.calibration_curve[i]
-            #     self.force_frontal_1 = self.values[0]
-            #     self.force_frontal_2 = self.values[1]
-            #     self.force_upper = self.values[2]
-            #     self.force_lateral = self.values[3]
-            #     self.torque_frontal_1 = self.values[4]
-            #     self.torque_frontal_2 = self.values[5]
-            #     updated = True
+                self.mz      = self.values[4]
+                self.fz_1    = self.values[5]
+                self.fz_2    = self.values[6]
+
+                updated = True
+
+        except Exception as e:
+            print(f"Error en get_forces con {self.addr}: {e}")
+
         return updated
 
 class ForcestickPublisher(Node):
@@ -221,7 +291,7 @@ signal.signal(signal.SIGTERM, terminate_handler)
 
 def main():
     opencoroco = OpenCoRoCo()
-    opencoroco.connect()
+    opencoroco.connect_tcp()
     rclpy.init()
     force_joint = ForcestickPublisher(opencoroco)
     rclpy.spin(force_joint)
