@@ -4,9 +4,19 @@ import serial #Librería para manejo de puertos seriales
 import signal
 import sys
 import time
+import socket
+import threading
 import rclpy #Librer´ia que permite trabajar con Ros2
 from rclpy.node import Node
 from w5500_msg.msg import Force
+number_clients = 1
+  
+host = '0.0.0.0'
+port = 5000
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind((host, port))
+s.listen(number_clients) 
 
 record = []
 # openCoRoCo interface, which connects the microcontroler to
@@ -15,8 +25,8 @@ class OpenCoRoCo(object):
     # Constructor, initialize the arguments
     def __init__(self):
         # Params of serial port connection
-        self.port_name = None #nombre del puerto serial
-        self.baudrate = None #velocidad de transmisión en baudios
+        self.sock = None 
+        self.connected = False #velocidad de transmisión en baudios
         self.bytesize = None #tamaño de los datos en bits
         self.parity = None #bit de paridad
         self.stopbits = None #número de bits de parada
