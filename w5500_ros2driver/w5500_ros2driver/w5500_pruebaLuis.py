@@ -14,6 +14,12 @@ record = []
 class OpenCoRoCo(object):
     # Constructor, initialize the arguments
     def __init__(self):
+        #Parte de cliente
+        self.client_data = {}
+        self.lock = threading.lock()
+
+
+
         # Params of serial port connection
         self.port_name = None #nombre del puerto serial
         self.baudrate = None #velocidad de transmisión en baudios
@@ -78,66 +84,49 @@ class OpenCoRoCo(object):
     # Function to get force data from serial port and
     # processes it
     def get_forces(self):
-        updated = False #bandera para indicaron si los valores de fuerza se actualizaron
-        self.raw_values = self.serial_device.read_until().decode()
-        # self.serial_device.read_until(): lee datos crudos desde el puerto serial 
-        # hasta encontrar un terminador (por defecto \n o \r\n)
-        # decode(): convierte esos bytes leídos en un string de Python.
-        self.raw_values = self.raw_values.replace("\r", "").replace("\n", "")
-        self.raw_values = self.raw_values.split(",")
-        if len(self.raw_values) == 7:
-            if not self.initialize:
-                self.initialize = True
-                updated = False
-            else:
-                for i in range(0, len(self.raw_values)):
-                    self.values[i] = int(self.raw_values[i])
-                    # Convierte cada string en número entero con int()
-                    self.values[i] *= 3/4095
-                self.fx_my_1 = self.values[0]
-                self.fy_mx_1 = self.values[1]
-                self.fy_mx_2 = self.values[2]
-                self.fx_my_2 = self.values[3]
-                self.mz = self.values[4]
-                self.fz_1 = self.values[5]
-                self.fz_2 = self.values[6]
-                updated = True # marca updated = True para indicar que los datos fueron procesados
-            # if not self.initialize and not self.offset_init:
-            #     self.initialize = True
-            #     updated = False
-            #     self.init_counter += 1
-            #     print(f"The force driver is initialized")
-            # elif self.initialize and not self.offset_init:
-            #     if self.init_counter < 10:
-            #         self.init_counter += 1
-            #     else:
-            #         if self.offset_init_counter < 100:
-            #             for i in range(0, len(self.raw_values)):
-            #                 self.values[i] = int(self.raw_values[i])
-            #                 self.values[i] *= 3/4095
-            #                 self.offset[i] += self.values[i] ** 2
-            #             self.offset_init_counter += 1
-            #         else:
-            #             for i in range(0, len(self.raw_values)):
-            #                 self.offset[i] = (self.offset[i]/100) ** (1/2)
-            #             self.offset_init = True
-            #             print(f"The force driver is set up")
-            #             print(f"The force driver will start reading force data")
-            #         updated = False
-            # elif self.initialize and self.offset_init:
-            #     for i in range(0, len(self.raw_values)):
-            #         self.values[i] = int(self.raw_values[i])
-            #         self.values[i] *= 3/4095
-            #         self.values[i] -= self.offset[i]
-            #         self.values[i] /= self.calibration_curve[i]
-            #     self.force_frontal_1 = self.values[0]
-            #     self.force_frontal_2 = self.values[1]
-            #     self.force_upper = self.values[2]
-            #     self.force_lateral = self.values[3]
-            #     self.torque_frontal_1 = self.values[4]
-            #     self.torque_frontal_2 = self.values[5]
-            #     updated = True
-        return updated
+
+        #Genera un buffer en el que se pueden manipular bytes
+        buf = bytearray()
+        updated = False  # estado inicial
+
+        try:
+            while True:
+                received = conn.recv(1024)
+                if not received:
+                    break
+                
+                buf.extend(received)
+
+                while len(buf) >= 14:
+                    frame = buf[:14]
+                    buf = buf[14:]
+
+                    readings = []
+                    for i in range(7):
+                        msb = frame[2*i]       # first byte of the pair
+                        lsb = frame[2*i + 1]   # second byte of the pair
+                        value = (msb << 8) | lsb   # combine into uint16
+                        value &= 0x0FFF            # keep only lower 12 bits
+                        readings.append(value)
+
+                    for i in range(7):
+                        self.values[i] = readings[i] * (3.0 / 4095.0)
+
+                    self.fx_my_1 = self.values[0]
+                    self.fy_mx_1 = self.values[1]
+                    self.fy_mx_2 = self.values[2]
+                    self.fx_my_2 = self.values[3]
+                    self.mz = self.values[4]
+                    self.fz_1 = self.values[5]
+                    self.fz_2 = self.values[6]
+        
+                    updated = True
+
+        except Exception as e:
+            print(f"Error en get_forces con {addr}: {e}")
+        finally:
+            return updated
+
 
 class ForcestickPublisher(Node):
     # Constructor, create the publisher and timer
