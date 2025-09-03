@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import serial
+import serial #Librería para manejo de puertos seriales
 import signal
 import sys
 import time
-import rclpy
+import rclpy #Librer´ia que permite trabajar con Ros2
 from rclpy.node import Node
 from w5500_msg.msg import Force
 
@@ -15,13 +15,14 @@ class OpenCoRoCo(object):
     # Constructor, initialize the arguments
     def __init__(self):
         # Params of serial port connection
-        self.port_name = None
-        self.baudrate = None
-        self.bytesize = None
-        self.parity = None
-        self.stopbits = None
-        self.timeout = None
-        self.connected = False
+        self.port_name = None #nombre del puerto serial
+        self.baudrate = None #velocidad de transmisión en baudios
+        self.bytesize = None #tamaño de los datos en bits
+        self.parity = None #bit de paridad
+        self.stopbits = None #número de bits de parada
+        self.timeout = None #tiempo de espera para leer datos
+        #bandera (True/False) para saber si la conexión serial ya está activa
+        self.connected = False 
 
         # Variables for force data processing
         self.values = [0, 0, 0, 0, 0, 0, 0]
@@ -32,7 +33,8 @@ class OpenCoRoCo(object):
         self.mz = self.values[4]
         self.fz_1 = self.values[5]
         self.fz_2 = self.values[6]
-        self.raw_values = ""
+        self.raw_values = "" 
+        # parece que almacena los valores de fuerza crudos leídos del puerto serial
         # The fit curve is a linear equation y = ax
         # Each element corresponds to an axis
         # The first element corresponds to the X-axis
@@ -45,14 +47,15 @@ class OpenCoRoCo(object):
             0.009115448082126
         ]
         self.offset = [0, 0, 0, 0, 0, 0, 0]
-        self.initialize = False
-        self.offset_init = False
+        self.initialize = False #indica si ya se hizo la inicialización general del sensor
+        self.offset_init = False #indica si ya se calculó y aplicó el offset
         self.init_counter = 0
         self.offset_init_counter = 0
 
     # Function to connect to the serial port
     def connect(self, port_name="/dev/ttyACM1", baudrate=115200, bytesize=8,
                 parity="N", stopbits=1, timeout=None):
+        # Guardar los parámetros en atributos del objeto
         self.port_name = port_name
         self.baudrate = baudrate
         self.bytesize = bytesize
@@ -60,6 +63,7 @@ class OpenCoRoCo(object):
         self.stopbits = stopbits
         self.timeout = timeout
         print(f"Connecting to {self.port_name} ...")
+        #Creación del objeto serial.Serial
         self.serial_device = serial.Serial(
             port=self.port_name,
             baudrate=self.baudrate,
@@ -74,8 +78,11 @@ class OpenCoRoCo(object):
     # Function to get force data from serial port and
     # processes it
     def get_forces(self):
-        updated = False
+        updated = False #bandera para indicaron si los valores de fuerza se actualizaron
         self.raw_values = self.serial_device.read_until().decode()
+        # self.serial_device.read_until(): lee datos crudos desde el puerto serial 
+        # hasta encontrar un terminador (por defecto \n o \r\n)
+        # decode(): convierte esos bytes leídos en un string de Python.
         self.raw_values = self.raw_values.replace("\r", "").replace("\n", "")
         self.raw_values = self.raw_values.split(",")
         if len(self.raw_values) == 7:
@@ -85,6 +92,7 @@ class OpenCoRoCo(object):
             else:
                 for i in range(0, len(self.raw_values)):
                     self.values[i] = int(self.raw_values[i])
+                    # Convierte cada string en número entero con int()
                     self.values[i] *= 3/4095
                 self.fx_my_1 = self.values[0]
                 self.fy_mx_1 = self.values[1]
@@ -93,7 +101,7 @@ class OpenCoRoCo(object):
                 self.mz = self.values[4]
                 self.fz_1 = self.values[5]
                 self.fz_2 = self.values[6]
-                updated = True
+                updated = True # marca updated = True para indicar que los datos fueron procesados
             # if not self.initialize and not self.offset_init:
             #     self.initialize = True
             #     updated = False
