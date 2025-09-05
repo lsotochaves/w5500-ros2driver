@@ -219,6 +219,11 @@ class ForcestickPublisher(Node):
         self.timer = self.create_timer(timer_periodo, self.timer_callback)
         self.init_time = time.time()
 
+        import os
+        self.csv_path = "output.csv"  # usa misma ruta que el script de matplotlib
+        self.csv_file = open(self.csv_path, "w", buffering=1)  # line buffering
+        self.csv_file.write("Timestamp,fxmy1,fymx1,fymx2,fxmy2,mz,fz1,fz2\n")
+
     # Function to publish the force data processed through
     # the topic using the custom force_msg format
     # Also save the force data to a buffer (list)
@@ -268,6 +273,8 @@ class ForcestickPublisher(Node):
                 f"Fz 2: {str(force_msg.fz_2)}"
             )
             record.append(record_data)
+
+            self.csv_file.write(record_data + "\n")
             # Manda un mensaje al log de ROS2 mostrando los valores publicados
             # self.get_logger().info(...) imprime en consola con nivel INFO
             
@@ -294,9 +301,13 @@ def main():
     opencoroco.connect_tcp()
     rclpy.init()
     force_joint = ForcestickPublisher(opencoroco)
-    rclpy.spin(force_joint)
-    force_joint.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(force_joint)
+    finally:
+        # << NUEVO: cerrar CSV al terminar
+        force_joint.csv_file.close()
+        force_joint.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
