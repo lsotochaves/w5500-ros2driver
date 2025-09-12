@@ -201,6 +201,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 '''
 #!/usr/bin/env python3
 
@@ -220,6 +222,7 @@ SIZE_SINGLE_BATCH = 15
 AMOUNT_FORCE_READINGS = 7
 AMOUNT_READINGS_PER_BATCH = 10
 SIZE_TOTAL_PAYLOAD = SIZE_SINGLE_BATCH * AMOUNT_READINGS_PER_BATCH
+LAST_READINGS = 1
 
 record = []
 
@@ -332,8 +335,8 @@ class ForcestickPublisher(Node):
     def timer_callback(self):
         if self.opencoroco.get_forces():
             # Take only the last 2 frames in the buffer
-            if len(self.opencoroco.decoded_frames) > 2:
-                self.opencoroco.decoded_frames = self.opencoroco.decoded_frames[-2:]
+            if len(self.opencoroco.decoded_frames) > LAST_READINGS:
+                self.opencoroco.decoded_frames = self.opencoroco.decoded_frames[-LAST_READINGS:]
 
             while self.opencoroco.decoded_frames:
                 information, values = self.opencoroco.decoded_frames.pop(0)
@@ -370,7 +373,7 @@ class ForcestickPublisher(Node):
                     self.get_logger().info(f"{label}: {val}")
 
                 # Reset batch counter if needed
-                if self.opencoroco.batch_member == AMOUNT_READINGS_PER_BATCH:
+                if self.opencoroco.batch_member == LAST_READINGS:
                     self.opencoroco.batch_member = 0
 
 
