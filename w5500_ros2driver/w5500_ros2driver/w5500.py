@@ -330,7 +330,7 @@ class ForcestickPublisher(Node):
 
         self.csv_path = "output.csv"
         self.csv_file = open(self.csv_path, "w", buffering=1)
-        self.csv_file.write("Timestamp,fxmy1,fymx1,fymx2,fxmy2,mz,fz1,fz2\n")
+        self.csv_file.write("Timestamp,fxmy1,fymx1,fymx2,fxmy2,mz,fz1,fz2, Batch Number\n")
 
     def timer_callback(self):
         if self.opencoroco.get_forces():
@@ -346,9 +346,9 @@ class ForcestickPublisher(Node):
                 if self.opencoroco.batch_member == 1:
                     record_data = f"{time.time() - self.init_time},"
                 else:
-                    record_data = f"{information[0]},"
+                    record_data = f"---------------,"
 
-                record_data += ",".join(str(v) for v in values)
+                record_data += ",".join(str(v) for v in values) + f",{information[0]}"
 
                 # Build ROS message
                 force_msg = Force()
@@ -379,7 +379,7 @@ class ForcestickPublisher(Node):
 
 def output_record(record):
     with open("output.csv", "w") as f:
-        f.write("Timestamp,fxmy1,fymx1,fymx2,fxmy2,mz,fz1,fz2\n")
+        f.write("Timestamp,fxmy1,fymx1,fymx2,fxmy2,mz,fz1,fz2, Batch Number\n")
         for item in record:
             f.write(f"{item}\n")
 
