@@ -8,7 +8,7 @@ def generate_launch_description():
         # W5500 #1 on port 5000
         Node(
             package=package_name,  # Replace with your package name
-            executable="forcestick_publisher",  # The name you installed with setup.py entry_point
+            executable="force_publisher",  # The name you installed with setup.py entry_point
             name="forcestick_1",
             output="screen",
             parameters=[{
@@ -20,7 +20,7 @@ def generate_launch_description():
         # W5500 #2 on port 5001
         Node(
             package=package_name,
-            executable="forcestick_publisher",
+            executable="force_publisher",
             name="forcestick_2",
             output="screen",
             parameters=[{
@@ -32,7 +32,7 @@ def generate_launch_description():
         # W5500 #3 on port 5002
         Node(
             package=package_name,
-            executable="forcestick_publisher",
+            executable="force_publisher",
             name="forcestick_3",
             output="screen",
             parameters=[{
@@ -44,7 +44,7 @@ def generate_launch_description():
         # W5500 #4 on port 5003
         Node(
             package=package_name,
-            executable="forcestick_publisher",
+            executable="force_publisher",
             name="forcestick_4",
             output="screen",
             parameters=[{
