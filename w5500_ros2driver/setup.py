@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
         	'force_publisher = w5500_ros2driver.w5500:main',
+            'multi_force_viewer = w5500_ros2driver.multi_force_viewer:main',
         ],
     },
 )

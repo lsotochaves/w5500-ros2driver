@@ -10,6 +10,7 @@ def generate_launch_description():
             package=package_name,  # Replace with your package name
             executable="force_publisher",  # The name you installed with setup.py entry_point
             name="forcestick_1",
+            namespace="sensor_1",
             output="screen",
             parameters=[{
                 "server_port": 5000,
@@ -22,6 +23,7 @@ def generate_launch_description():
             package=package_name,
             executable="force_publisher",
             name="forcestick_2",
+            namespace="sensor_2",
             output="screen",
             parameters=[{
                 "server_port": 5001,
@@ -34,6 +36,7 @@ def generate_launch_description():
             package=package_name,
             executable="force_publisher",
             name="forcestick_3",
+            namespace="sensor_3",
             output="screen",
             parameters=[{
                 "server_port": 5002,
@@ -46,6 +49,7 @@ def generate_launch_description():
             package=package_name,
             executable="force_publisher",
             name="forcestick_4",
+            namespace="sensor_4",
             output="screen",
             parameters=[{
                 "server_port": 5003,
