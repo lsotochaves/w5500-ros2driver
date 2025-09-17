@@ -65,7 +65,7 @@ class OpenCoRoCo(object):
             if len(data) < SIZE_SINGLE_BATCH:
                 return False
 
-            frame = bytearray(data[:SIZE_SINGLE_BATCH])
+            frame = bytearray(data[-SIZE_SINGLE_BATCH:])
             information = frame[:INFO_BYTE_AMOUNT]
             del frame[:INFO_BYTE_AMOUNT]
 
