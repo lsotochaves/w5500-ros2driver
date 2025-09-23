@@ -17,7 +17,7 @@ class ForcePlotter(Node):
         super().__init__("force_plotter")
 
         # Subscribe to the "force" topic
-        self.sub = self.create_subscription(Force, "force", self.callback, 10)
+        self.sub = self.create_subscription(Force, "/sensor_2/force", self.callback, 10)
 
         # rolling buffers for each channel
         self.fx_my_1 = deque(maxlen=WINDOW)

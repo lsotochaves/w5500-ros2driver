@@ -46,18 +46,28 @@ class OpenCoRoCo:
             data, addr = self.server_socket.recvfrom(1024)
             if len(data) < SIZE_SINGLE_BATCH:
                 return None
-            frame = data[-SIZE_SINGLE_BATCH:]
+            frame = data[-SIZE_SINGLE_BATCH:]  # last 15 bytes of datagram
         else:  # TCP
-            data = self.conn.recv(1024)
+            data = self.conn.recv(4096)  # grab whatever is waiting
             if not data:
                 return None
             self.buf.extend(data)
+
+            # If less than 1 frame, wait
             if len(self.buf) < SIZE_SINGLE_BATCH:
                 return None
-            frame = self.buf[:SIZE_SINGLE_BATCH]
-            del self.buf[:SIZE_SINGLE_BATCH]
 
-        # Parse frame
+            # How many complete frames are inside?
+            frame_count = len(self.buf) // SIZE_SINGLE_BATCH
+
+            # Position where the last full frame starts
+            start = (frame_count - 1) * SIZE_SINGLE_BATCH
+            frame = self.buf[start:start + SIZE_SINGLE_BATCH]
+
+            # Discard everything (we only keep last frame)
+            self.buf.clear()
+
+        # --- Parse frame ---
         frame = bytearray(frame)
         del frame[:INFO_BYTE_AMOUNT]  # remove info byte
         readings = []
@@ -66,8 +76,10 @@ class OpenCoRoCo:
             lsb = frame[2 * i + 1]
             val = ((msb << 8) | lsb) & 0x0FFF
             readings.append(val)
+
         values = [r * (3.0 / 4095.0) for r in readings]
         return values
+
 
 
 class ForcestickPublisher(Node):
