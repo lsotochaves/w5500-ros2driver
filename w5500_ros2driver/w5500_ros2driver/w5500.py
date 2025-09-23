@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 from w5500_msg.msg import Force
 
-MODE_UDP = True
+MODE_UDP = False
 INFO_BYTE_AMOUNT = 1
 HOST = "0.0.0.0"
 SIZE_SINGLE_BATCH = 15
