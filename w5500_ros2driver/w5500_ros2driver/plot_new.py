@@ -5,81 +5,91 @@ from rclpy.node import Node
 from w5500_msg.msg import Force
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from collections import deque
+from collections import deque, defaultdict
 import threading
 
-# how many samples to keep visible
-WINDOW = 500  
+WINDOW = 500  # rolling window size
+SENSORS = [f"sensor_{i}" for i in range(1, 5)]
+CHANNELS = ["fx_my_1", "fy_mx_1", "fy_mx_2", "fx_my_2", "mz", "fz_1", "fz_2"]
+
+# optional: mapping to ports from your launch file
+PORT_MAP = {"sensor_1": 5000, "sensor_2": 5001, "sensor_3": 5002, "sensor_4": 5003}
 
 
-class ForcePlotter(Node):
+class MultiForcePlotter(Node):
     def __init__(self):
-        super().__init__("force_plotter")
+        super().__init__("multi_force_plotter")
 
-        # Subscribe to the "force" topic
-        self.sub = self.create_subscription(Force, "/sensor_2/force", self.callback, 10)
+        # one deque per channel per sensor
+        self.buffers = defaultdict(lambda: {ch: deque(maxlen=WINDOW) for ch in CHANNELS})
 
-        # rolling buffers for each channel
-        self.fx_my_1 = deque(maxlen=WINDOW)
-        self.fy_mx_1 = deque(maxlen=WINDOW)
-        self.fy_mx_2 = deque(maxlen=WINDOW)
-        self.fx_my_2 = deque(maxlen=WINDOW)
-        self.mz = deque(maxlen=WINDOW)
-        self.fz_1 = deque(maxlen=WINDOW)
-        self.fz_2 = deque(maxlen=WINDOW)
+        # subscribe to all 4 sensor topics
+        self.subs = []
+        for s in SENSORS:
+            topic = f"/{s}/force"
+            self.subs.append(
+                self.create_subscription(Force, topic, self.make_callback(s), 10)
+            )
 
-    def callback(self, msg: Force):
-        """Append new data sample to the buffers"""
-        self.fx_my_1.append(msg.fx_my_1)
-        self.fy_mx_1.append(msg.fy_mx_1)
-        self.fy_mx_2.append(msg.fy_mx_2)
-        self.fx_my_2.append(msg.fx_my_2)
-        self.mz.append(msg.mz)
-        self.fz_1.append(msg.fz_1)
-        self.fz_2.append(msg.fz_2)
+    def make_callback(self, sensor_name):
+        def callback(msg: Force):
+            b = self.buffers[sensor_name]
+            b["fx_my_1"].append(msg.fx_my_1)
+            b["fy_mx_1"].append(msg.fy_mx_1)
+            b["fy_mx_2"].append(msg.fy_mx_2)
+            b["fx_my_2"].append(msg.fx_my_2)
+            b["mz"].append(msg.mz)
+            b["fz_1"].append(msg.fz_1)
+            b["fz_2"].append(msg.fz_2)
+        return callback
 
 
 def main():
     rclpy.init()
-    node = ForcePlotter()
+    node = MultiForcePlotter()
 
-    fig, ax = plt.subplots()
-    ax.set_title("Forces (real-time)")
-    ax.set_xlabel("Samples")
-    ax.set_ylabel("Value")
+    # Create one subplot per sensor (stacked vertically)
+    fig, axes = plt.subplots(len(SENSORS), 1, figsize=(8, 10), sharex=True)
 
-    # create line objects for each channel
-    (line1,) = ax.plot([], [], label="Fx My 1")
-    (line2,) = ax.plot([], [], label="Fy Mx 1")
-    (line3,) = ax.plot([], [], label="Fy Mx 2")
-    (line4,) = ax.plot([], [], label="Fx My 2")
-    (line5,) = ax.plot([], [], label="Mz")
-    (line6,) = ax.plot([], [], label="Fz 1")
-    (line7,) = ax.plot([], [], label="Fz 2")
-    ax.legend(loc="upper right")
+    if len(SENSORS) == 1:
+        axes = [axes]  # ensure iterable
+
+    lines = {}
+    for ax, sensor in zip(axes, SENSORS):
+        # title includes sensor name and port
+        port = PORT_MAP.get(sensor, "?")
+        ax.set_title(f"{sensor} (port {port})")
+        ax.set_ylabel("Force Value")
+
+        for ch in CHANNELS:
+            (line,) = ax.plot([], [], label=ch, alpha=0.8)
+            lines[(sensor, ch)] = line
+
+        ax.legend(loc="upper right", fontsize="small")
+
+    axes[-1].set_xlabel("Samples")
 
     def update(frame):
-        # update data from node buffers
-        line1.set_data(range(len(node.fx_my_1)), list(node.fx_my_1))
-        line2.set_data(range(len(node.fy_mx_1)), list(node.fy_mx_1))
-        line3.set_data(range(len(node.fy_mx_2)), list(node.fy_mx_2))
-        line4.set_data(range(len(node.fx_my_2)), list(node.fx_my_2))
-        line5.set_data(range(len(node.mz)), list(node.mz))
-        line6.set_data(range(len(node.fz_1)), list(node.fz_1))
-        line7.set_data(range(len(node.fz_2)), list(node.fz_2))
+        for sensor in SENSORS:
+            buf = node.buffers[sensor]
+            for ch in CHANNELS:
+                data = list(buf[ch])
+                line = lines[(sensor, ch)]
+                line.set_data(range(len(data)), data)
 
-        # rescale axes
-        ax.relim()
-        ax.autoscale_view()
-        return (line1, line2, line3, line4, line5, line6, line7)
+        for ax in axes:
+            ax.relim()
+            ax.autoscale_view()
 
-    # refresh plot every 50 ms (~20 FPS)
+        return lines.values()
+
     ani = FuncAnimation(fig, update, interval=50, blit=False)
 
-    # spin ROS in a background thread
+    # spin ROS in background thread
     ros_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     ros_thread.start()
 
+    plt.tight_layout()
     plt.show()
 
     node.destroy_node()
