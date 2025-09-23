@@ -26,6 +26,7 @@ setup(
         	'force_publisher = w5500_ros2driver.w5500:main',
             'multi_force_viewer = w5500_ros2driver.multi_force_viewer:main',
             'force_plotter = w5500_ros2driver.plot_new:main',
+            'csv_gen = w5500_ros2driver.csv_gen:main',
         ],
     },
 )

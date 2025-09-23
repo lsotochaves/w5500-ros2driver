@@ -6,53 +6,92 @@ import rclpy
 from rclpy.node import Node
 from w5500_msg.msg import Force
 
+# mapping from sensor name to port
+PORT_MAP = {
+    "sensor_1": 5000,
+    "sensor_2": 5001,
+    "sensor_3": 5002,
+    "sensor_4": 5003,
+}
 
-class ForceCSVLogger(Node):
+SENSORS = [f"sensor_{i}" for i in range(1, 5)]
+
+
+class MultiForceCSVLogger(Node):
     def __init__(self):
-        super().__init__("force_csv_logger")
+        super().__init__("multi_force_csv_logger")
 
-        # Parameter for output file name
-        self.declare_parameter("csv_file", "forces.csv")
-        self.csv_file = self.get_parameter("csv_file").get_parameter_value().string_value
+        # Dictionary to store file handles and writers for each sensor
+        self.files = {}
+        self.writers = {}
+        
+        # Create CSV file and writer for each sensor
+        for sensor in SENSORS:
+            port = PORT_MAP.get(sensor, "unknown")
+            
+            if port != "unknown":
+                filename = f"{sensor}_{port}.csv"
+            else:
+                filename = f"{sensor}.csv"
+            
+            # Open file with line buffering
+            file_handle = open(filename, "w", newline="", buffering=1)
+            writer = csv.writer(file_handle)
+            
+            # Write header
+            writer.writerow([
+                "timestamp",
+                "fx_my_1", "fy_mx_1", "fy_mx_2",
+                "fx_my_2", "mz", "fz_1", "fz_2"
+            ])
+            
+            self.files[sensor] = file_handle
+            self.writers[sensor] = writer
+            
+            self.get_logger().info(f"Created CSV file: {filename}")
 
-        # Open file
-        self.file = open(self.csv_file, "w", newline="", buffering=1)  # line-buffered
-        self.writer = csv.writer(self.file)
+        # Subscribe to all sensor topics
+        self.subs = []
+        for sensor in SENSORS:
+            topic = f"/{sensor}/force"
+            callback = self.make_callback(sensor)
+            sub = self.create_subscription(Force, topic, callback, 10)
+            self.subs.append(sub)
+            self.get_logger().info(f"Subscribed to {topic}")
 
-        # Write header
-        self.writer.writerow([
-            "timestamp",
-            "fx_my_1", "fy_mx_1", "fy_mx_2",
-            "fx_my_2", "mz", "fz_1", "fz_2"
-        ])
-
-        # Subscribe to a force topic (edit to match your namespace!)
-        self.sub = self.create_subscription(Force, "/sensor_2/force", self.callback, 10)
-
-    def callback(self, msg: Force):
-        now = time.time()  # seconds since epoch
-        row = [
-            now,
-            msg.fx_my_1,
-            msg.fy_mx_1,
-            msg.fy_mx_2,
-            msg.fx_my_2,
-            msg.mz,
-            msg.fz_1,
-            msg.fz_2,
-        ]
-        self.writer.writerow(row)
+    def make_callback(self, sensor_name):
+        """Create a callback function for a specific sensor"""
+        def callback(msg: Force):
+            now = time.time()  # seconds since epoch
+            row = [
+                now,
+                msg.fx_my_1,
+                msg.fy_mx_1,
+                msg.fy_mx_2,
+                msg.fx_my_2,
+                msg.mz,
+                msg.fz_1,
+                msg.fz_2,
+            ]
+            # Write to the appropriate CSV file
+            self.writers[sensor_name].writerow(row)
+        return callback
 
     def destroy_node(self):
-        self.file.close()
+        # Close all files
+        for sensor, file_handle in self.files.items():
+            file_handle.close()
+            self.get_logger().info(f"Closed CSV file for {sensor}")
         super().destroy_node()
 
 
 def main():
     rclpy.init()
-    node = ForceCSVLogger()
+    node = MultiForceCSVLogger()
     try:
         rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
     finally:
         node.destroy_node()
         rclpy.shutdown()
