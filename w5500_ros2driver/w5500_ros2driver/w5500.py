@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import socket
-import time
+import threading
 import rclpy
 from rclpy.node import Node
 from w5500_msg.msg import Force
 
 # --- Config ---
-''' These parameters are delcared as global for simplicity. Might be moved to class attributes later.'''
+''' These parameters are declared as global for simplicity. 
+    They could be moved to class attributes later. '''
 MODE_UDP = False          # False = TCP, True = UDP
 HOST = "0.0.0.0"
 SIZE_SINGLE_BATCH = 15
@@ -22,7 +23,8 @@ class OpenCoRoCo:
         self.mode = MODE_UDP
         self.server_socket = None
         self.conn = None
-        self.buf = bytearray()
+        self.latest_frame = None   # holds the last decoded frame
+        self.running = False
 
     def start_server(self):
         if self.port is None:
@@ -34,7 +36,7 @@ class OpenCoRoCo:
             self.server_socket.bind((self.host, self.port))
             print(f"UDP server ready on {self.host}:{self.port}")
         
-        # Creates a server for listening incoming TCP packets
+        #Creates a server for listening incoming TCP packets
         else:  # TCP
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -44,48 +46,45 @@ class OpenCoRoCo:
             self.conn, self.addr = self.server_socket.accept()
             print("Connected by", self.addr)
 
-    # Returns the most recent complete frame as a list of scaled values, or None
-    def get_latest_frame(self):
-        """Return the most recent complete frame as a list of scaled values, or None"""
-        if self.mode:  # UDP
-            data, addr = self.server_socket.recvfrom(1024)
-            if len(data) < SIZE_SINGLE_BATCH:
-                return None
-            frame = data[-SIZE_SINGLE_BATCH:]  # last 15 bytes of datagram
-        else:  # TCP
-            data = self.conn.recv(4096)  # grab whatever is waiting
-            if not data:
-                return None
-            self.buf.extend(data)
+        # Launch background receiver thread so network I/O does not block ROS2 timer
+        self.running = True
+        threading.Thread(target=self._recv_loop, daemon=True).start()
 
-            # If less than 1 frame, wait
-            if len(self.buf) < SIZE_SINGLE_BATCH:
-                return None
+    def _recv_loop(self):
+        # Continuously receive packets and update self.latest_frame
+        while self.running:
+            try:
+                if self.mode:  # UDP
+                    data, addr = self.server_socket.recvfrom(1024)
+                    if len(data) >= SIZE_SINGLE_BATCH:
+                        frame = data[-SIZE_SINGLE_BATCH:]
+                        self.latest_frame = self._parse_frame(frame)
+                else:  # TCP
+                    data = self.conn.recv(4096)
+                    if not data:
+                        continue
+                    frame = data[-SIZE_SINGLE_BATCH:]
+                    if len(frame) == SIZE_SINGLE_BATCH:
+                        self.latest_frame = self._parse_frame(frame)
+            except Exception as e:
+                print(f"Receiver error: {e}")
+                continue
 
-            # How many complete frames are inside?
-            frame_count = len(self.buf) // SIZE_SINGLE_BATCH
-
-            # Position where the last full frame starts
-            start = (frame_count - 1) * SIZE_SINGLE_BATCH
-            frame = self.buf[start:start + SIZE_SINGLE_BATCH]
-
-            # Discard everything (we only keep last frame)
-            self.buf.clear()
-
-        # --- Parse frame ---
-        ''' Currently it removes info byte but could be added as a value in the ROS2 message for debugging.'''
+    def _parse_frame(self, frame):
+        # Convert raw frame bytes into scaled values
         frame = bytearray(frame)
         del frame[:INFO_BYTE_AMOUNT]  # remove info byte
         readings = []
-        for i in range(AMOUNT_FORCE_READINGS):  # Scale values
+        for i in range(AMOUNT_FORCE_READINGS):
             msb = frame[2 * i]
             lsb = frame[2 * i + 1]
             val = ((msb << 8) | lsb) & 0x0FFF
             readings.append(val)
+        return [r * (3.0 / 4095.0) for r in readings]
 
-        values = [r * (3.0 / 4095.0) for r in readings]
-        return values
-
+    def get_latest_frame(self):
+        ''' Return last decoded frame (may be None if nothing received yet) '''
+        return self.latest_frame
 
 
 class ForcestickPublisher(Node):
@@ -103,7 +102,8 @@ class ForcestickPublisher(Node):
         # ROS publisher
         self.force_publisher = self.create_publisher(Force, "force", 10)
 
-        # Timer: 1 kHz
+        ''' Timer executes every 1 ms (1 kHz).
+            It reads the latest frame (non-blocking) and publishes it. '''
         self.timer = self.create_timer(0.001, self.timer_callback)
 
     def timer_callback(self):
