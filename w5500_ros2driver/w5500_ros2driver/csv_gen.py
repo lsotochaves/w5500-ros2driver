@@ -6,6 +6,10 @@ import rclpy
 from rclpy.node import Node
 from w5500_msg.msg import Force
 
+'''Data is processed sequentially for each sensor, this could be a possible cause for bottleneck.
+Paralellism might be implemented later if needed.
+'''
+
 # mapping from sensor name to port
 PORT_MAP = {
     "sensor_1": 5000,
@@ -59,8 +63,8 @@ class MultiForceCSVLogger(Node):
             self.subs.append(sub)
             self.get_logger().info(f"Subscribed to {topic}")
 
+    # Create a callback function for each sensor
     def make_callback(self, sensor_name):
-        """Create a callback function for a specific sensor"""
         def callback(msg: Force):
             now = time.time()  # seconds since epoch
             row = [
