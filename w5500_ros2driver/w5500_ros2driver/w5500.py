@@ -7,6 +7,7 @@ from rclpy.node import Node
 from w5500_msg.msg import Force
 
 # --- Config ---
+''' These parameters are delcared as global for simplicity. Might be moved to class attributes later.'''
 MODE_UDP = False          # False = TCP, True = UDP
 HOST = "0.0.0.0"
 SIZE_SINGLE_BATCH = 15
@@ -27,10 +28,13 @@ class OpenCoRoCo:
         if self.port is None:
             raise ValueError("Port must be set before starting server")
 
+        # Creates a server for listening incoming UDP packets
         if self.mode:  # UDP
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.server_socket.bind((self.host, self.port))
             print(f"UDP server ready on {self.host}:{self.port}")
+        
+        # Creates a server for listening incoming TCP packets
         else:  # TCP
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -40,6 +44,7 @@ class OpenCoRoCo:
             self.conn, self.addr = self.server_socket.accept()
             print("Connected by", self.addr)
 
+    # Returns the most recent complete frame as a list of scaled values, or None
     def get_latest_frame(self):
         """Return the most recent complete frame as a list of scaled values, or None"""
         if self.mode:  # UDP
@@ -68,10 +73,11 @@ class OpenCoRoCo:
             self.buf.clear()
 
         # --- Parse frame ---
+        ''' Currently it removes info byte but could be added as a value in the ROS2 message for debugging.'''
         frame = bytearray(frame)
         del frame[:INFO_BYTE_AMOUNT]  # remove info byte
         readings = []
-        for i in range(AMOUNT_FORCE_READINGS):
+        for i in range(AMOUNT_FORCE_READINGS):  # Scale values
             msb = frame[2 * i]
             lsb = frame[2 * i + 1]
             val = ((msb << 8) | lsb) & 0x0FFF
