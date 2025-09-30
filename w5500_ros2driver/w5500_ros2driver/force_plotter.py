@@ -8,11 +8,11 @@ from matplotlib.animation import FuncAnimation
 from collections import deque, defaultdict
 import threading
 
-WINDOW = 500  # rolling window size
+WINDOW = 500  # Amount of data seen in plot window. Last 500 samples.
 SENSORS = [f"sensor_{i}" for i in range(1, 5)]
 CHANNELS = ["fx_my_1", "fy_mx_1", "fy_mx_2", "fx_my_2", "mz", "fz_1", "fz_2"]
 
-# optional: mapping to ports from your launch file
+# Sensor names mapped to port numbers
 PORT_MAP = {"sensor_1": 5000, "sensor_2": 5001, "sensor_3": 5002, "sensor_4": 5003}
 
 
@@ -20,7 +20,7 @@ class MultiForcePlotter(Node):
     def __init__(self):
         super().__init__("multi_force_plotter")
 
-        # one deque per channel per sensor
+        # Generates a dequeue buffer for each channel of each sensor
         self.buffers = defaultdict(lambda: {ch: deque(maxlen=WINDOW) for ch in CHANNELS})
 
         # subscribe to all 4 sensor topics
@@ -31,6 +31,7 @@ class MultiForcePlotter(Node):
                 self.create_subscription(Force, topic, self.make_callback(s), 10)
             )
 
+    # Function in charge of adding data to the correct buffer position for each sensor.
     def make_callback(self, sensor_name):
         def callback(msg: Force):
             b = self.buffers[sensor_name]
@@ -55,6 +56,7 @@ def main():
         axes = [axes]  # ensure iterable
 
     lines = {}
+    #Initialize plots and lines for each sensor/channel
     for ax, sensor in zip(axes, SENSORS):
         # title includes sensor name and port
         port = PORT_MAP.get(sensor, "?")
@@ -69,6 +71,7 @@ def main():
 
     axes[-1].set_xlabel("Samples")
 
+    # Takes the latest values from each sensor and updates matplotlib Line2D object with new X and Y values.
     def update(frame):
         for sensor in SENSORS:
             buf = node.buffers[sensor]
@@ -83,9 +86,10 @@ def main():
 
         return lines.values()
 
-    ani = FuncAnimation(fig, update, interval=50, blit=False)
+    # calls update repeatedly to change plot over time.
+    ani = FuncAnimation(fig, update, interval=20, blit=False) # redraw every 20ms; 50fps approx. Change if PC can't keep up.
 
-    # spin ROS in background thread
+    # spin ROS in background thread for concurrency in between ROS and matplotlib
     ros_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     ros_thread.start()
 
