@@ -9,7 +9,7 @@ from w5500_msg.msg import Force
 # --- Config ---
 ''' These parameters are declared as global for simplicity. 
     They could be moved to class attributes later. '''
-MODE_UDP = False          # False = TCP, True = UDP
+MODE_UDP = True          # False = TCP, True = UDP
 HOST = "0.0.0.0"
 SIZE_SINGLE_BATCH = 15
 AMOUNT_FORCE_READINGS = 7
@@ -25,6 +25,7 @@ class OpenCoRoCo:
         self.conn = None
         self.latest_frame = None   # holds the last decoded frame
         self.running = False
+        self.info = 0
 
     def start_server(self):
         if self.port is None:
@@ -72,6 +73,7 @@ class OpenCoRoCo:
 
     def _parse_frame(self, frame):
         # Convert raw frame bytes into scaled values
+        self.info = frame[0]
         frame = bytearray(frame)
         del frame[:INFO_BYTE_AMOUNT]  # remove info byte
         readings = []
@@ -122,9 +124,9 @@ class ForcestickPublisher(Node):
             msg.fz_2,
         ) = map(float, values)
 
-        self.force_publisher.publish(msg)
+        self.force_publisher.publish(msg) 
         # Optional debug output
-        self.get_logger().info(f"Published: {values}")
+        self.get_logger().info(f"Published: {values} + {self.opencoroco.info}")
 
 
 def main():
