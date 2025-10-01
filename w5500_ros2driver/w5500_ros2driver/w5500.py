@@ -114,6 +114,12 @@ class ForcestickPublisher(Node):
             return
 
         msg = Force()
+
+        # Timestamp
+        msg.stamp = self.get_clock().now().to_msg()
+
+        msg.info = self.opencoroco.info
+
         (
             msg.fx_my_1,
             msg.fy_mx_1,

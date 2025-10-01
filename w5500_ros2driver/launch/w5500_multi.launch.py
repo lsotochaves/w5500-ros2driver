@@ -3,18 +3,20 @@ from launch_ros.actions import Node
 
 package_name = "w5500_ros2driver"
 
+
+#IMPLEMENTAR QoS TAL VEZ LUEGO
+
 def generate_launch_description():
     return LaunchDescription([
         # W5500 #1 on port 5000
         Node(
             package=package_name,  # Replace with your package name
-            executable="force_publisher",  # The name you installed with setup.py entry_point
+            executable="force_publisher",  # Setup.py entry point
             name="forcestick_1",
             namespace="sensor_1",
             output="screen",
             parameters=[{
                 "server_port": 5000,
-                "csv_prefix": "output_w5500_1"
             }]
         ),
 
@@ -27,7 +29,6 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "server_port": 5001,
-                "csv_prefix": "output_w5500_2"
             }]
         ),
 
@@ -40,7 +41,6 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "server_port": 5002,
-                "csv_prefix": "output_w5500_3"
             }]
         ),
 
@@ -53,7 +53,6 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "server_port": 5003,
-                "csv_prefix": "output_w5500_4"
             }]
         ),
     ])
