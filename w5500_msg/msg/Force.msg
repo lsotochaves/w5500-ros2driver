@@ -1,3 +1,5 @@
+builtin_interfaces/Time stamp
+uint8 info
 float64 fx_my_1
 float64 fy_mx_1
 float64 fy_mx_2
