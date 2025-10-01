@@ -132,7 +132,7 @@ class ForcestickPublisher(Node):
 
         self.force_publisher.publish(msg) 
         # Optional debug output
-        self.get_logger().info(f"Published: {values} + {self.opencoroco.info}")
+        # self.get_logger().info(f"Published: {values} + {self.opencoroco.info}")
 
 
 def main():
