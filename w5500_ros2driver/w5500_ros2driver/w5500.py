@@ -115,9 +115,6 @@ class ForcestickPublisher(Node):
 
         msg = Force()
 
-        # Timestamp
-        msg.stamp = self.get_clock().now().to_msg()
-
         msg.info = self.opencoroco.info
 
         (
@@ -129,6 +126,9 @@ class ForcestickPublisher(Node):
             msg.fz_1,
             msg.fz_2,
         ) = map(float, values)
+
+        # Timestamp
+        msg.stamp = self.get_clock().now().to_msg()
 
         self.force_publisher.publish(msg) 
         # Optional debug output

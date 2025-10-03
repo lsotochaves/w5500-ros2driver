@@ -12,13 +12,23 @@ from rclpy.serialization import deserialize_message
 from w5500_msg.msg import Force
 import csv
 
+
 def export_bag_to_csv(bag_path, output_dir='./csv_output'):
     """Export each topic in bag to separate CSV file"""
     
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
-    storage_options = StorageOptions(uri=str(bag_path), storage_id='mcap')
+
+    # Detect storage format automatically
+    if str(bag_path).endswith(".db3"):
+        storage_id = "sqlite3"
+    elif str(bag_path).endswith(".mcap"):
+        storage_id = "mcap"
+    else:
+        # fallback: try sqlite3 first
+        storage_id = "sqlite3"
+
+    storage_options = StorageOptions(uri=str(bag_path), storage_id=storage_id)
     converter_options = ConverterOptions(
         input_serialization_format='cdr',
         output_serialization_format='cdr'
@@ -33,6 +43,7 @@ def export_bag_to_csv(bag_path, output_dir='./csv_output'):
     msg_count = {}
     
     print(f"Reading bag: {bag_path}")
+    print(f"Detected storage format: {storage_id}")
     print(f"Output directory: {output_dir}")
     
     try:
@@ -54,9 +65,8 @@ def export_bag_to_csv(bag_path, output_dir='./csv_output'):
                 
                 # Write header
                 csv_writers[topic].writerow([
-                    'timestamp_ns',
-                    'stamp_sec',
-                    'stamp_nanosec',
+                    'timestamp_ns',   # tiempo del bag (grabación)
+                    'msg_time_s',     # tiempo absoluto en segundos del mensaje
                     'info',
                     'fx_my_1',
                     'fy_mx_1',
@@ -72,12 +82,14 @@ def export_bag_to_csv(bag_path, output_dir='./csv_output'):
             
             # Deserialize message
             msg = deserialize_message(data, Force)
+
+            # Combinar sec + nanosec en segundos (float)
+            msg_time = msg.stamp.sec + msg.stamp.nanosec * 1e-9
             
             # Write data row
             csv_writers[topic].writerow([
-                timestamp,
-                msg.stamp.sec,
-                msg.stamp.nanosec,
+                timestamp,       # nanosegundos del bag
+                msg_time,        # segundos (float) del publicador
                 msg.info,
                 msg.fx_my_1,
                 msg.fy_mx_1,
@@ -104,6 +116,7 @@ def export_bag_to_csv(bag_path, output_dir='./csv_output'):
         filename = topic.replace('/', '_').lstrip('_') + '.csv'
         print(f"{filename}: {count} messages")
 
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 bag_to_csv.py <bag_directory> [output_dir]")
@@ -119,6 +132,7 @@ def main():
         sys.exit(1)
     
     export_bag_to_csv(bag_path, output_dir)
+
 
 if __name__ == '__main__':
     main()
