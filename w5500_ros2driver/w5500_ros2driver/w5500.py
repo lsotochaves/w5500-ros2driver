@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+./#!/usr/bin/env python3
 
 import socket
 import threading
@@ -115,6 +115,9 @@ class ForcestickPublisher(Node):
 
         msg = Force()
 
+        # Timestamp
+        
+
         msg.info = self.opencoroco.info
 
         (
@@ -127,9 +130,8 @@ class ForcestickPublisher(Node):
             msg.fz_2,
         ) = map(float, values)
 
-        # Timestamp
         msg.stamp = self.get_clock().now().to_msg()
-
+        
         self.force_publisher.publish(msg) 
         # Optional debug output
         # self.get_logger().info(f"Published: {values} + {self.opencoroco.info}")
