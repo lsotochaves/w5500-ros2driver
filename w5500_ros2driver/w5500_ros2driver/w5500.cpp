@@ -114,7 +114,7 @@ private:
     bool mode_;
     int port_ = 0;
     int cpu_core_ = -1;
-    int sleep_us_ = 100;
+    int sleep_us_ = 10;
     int sockfd_ = -1;
     int connfd_ = -1;
     std::atomic<bool> running_;
@@ -205,7 +205,7 @@ public:
     {
         int server_port = this->declare_parameter<int>("server_port", 5000);
         int cpu_core = this->declare_parameter<int>("cpu_core", -1);
-        int recv_sleep_us = this->declare_parameter<int>("recv_sleep_us", 100);
+        int recv_sleep_us = this->declare_parameter<int>("recv_sleep_us", 10);
         bool skip_unchanged = this->declare_parameter<bool>("skip_unchanged", false);
         skip_unchanged_ = skip_unchanged;
 
@@ -241,10 +241,6 @@ private:
         msg.info = opencoroco_.get_info();
 
         // Convert time to builtin_interfaces::msg::Time manually (Humble-safe)
-        auto now = this->get_clock()->now();
-        msg.stamp.sec = now.seconds();
-        msg.stamp.nanosec = now.nanoseconds() % 1000000000ull;
-
         msg.fx_my_1 = frame[0];
         msg.fy_mx_1 = frame[1];
         msg.fy_mx_2 = frame[2];
@@ -252,6 +248,10 @@ private:
         msg.mz      = frame[4];
         msg.fz_1    = frame[5];
         msg.fz_2    = frame[6];
+
+        auto now = this->get_clock()->now();
+        msg.stamp.sec = now.seconds();
+        msg.stamp.nanosec = now.nanoseconds() % 1000000000ull;
 
         publisher_->publish(msg);
     }
