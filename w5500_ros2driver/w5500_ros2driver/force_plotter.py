@@ -21,7 +21,7 @@ class MultiForcePlotter(Node):
         super().__init__("multi_force_plotter")
 
         # Generates a dequeue buffer for each channel of each sensor
-        self.buffers = defaultdict(lambda: {ch: deque(maxlen=WINDOW) for ch in CHANNELS})
+        self.buffers = defaultdict(lambda: {ch: deque() for ch in CHANNELS})
 
         # subscribe to all 4 sensor topics
         self.subs = []
