@@ -1,0 +1,82 @@
+# --- Python intermediate files ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.nox/
+*.log
+
+# --- C/C++ intermediate files ---
+*.o
+*.obj
+*.out
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.d
+*.gch
+*.pch
+*.stackdump
+*.map
+*.elf
+*.bin
+*.hex
+
+# --- Build system intermediates ---
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.ninja
+*.ninja_deps
+*.ninja_log
+compile_commands.json
+
+# --- IDE / Editor files ---
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-*
+*.swp
+*~
+*.tmp
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+*.env
+
+# --- Cache / Metadata ---
+.cache/
+dist/
+build-temp/
+tmp/
+*.pid
+*.lock
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- LaTeX / Reports ---
+*.aux
+*.out
+*.toc
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+
+# --- Logs / profiles ---
+*.prof
+*.coverage
+htmlcov/
+coverage.xml
