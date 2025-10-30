@@ -157,7 +157,7 @@ class STM32F4Processor(BaseProcessor):
 
 # ---------- STM32F3 Processor (placeholder for now) ----------
 class STM32F3Processor(BaseProcessor):
-    AMOUNT_FINAL_DATA = 10
+    AMOUNT_FINAL_DATA = 10 # STM32f3 sends 10 elements of data, 9 IMU and 1 force
     start = 1
     end = start + AMOUNT_FINAL_DATA * BaseProcessor.BYTES_PER_READING
     MSG_TYPE = Force  # placeholder until custom message is defined
@@ -248,7 +248,7 @@ class ForcestickPublisher(Node):
     def timer_callback(self):
         frame = self.opencoroco.get_latest_frame()
         if frame is None:
-            return
+            returnp
 
         info = self.opencoroco.info
         # Builds the message based on the frame and the info byte
