@@ -29,7 +29,7 @@ class SocketHandler(ABC):
 # ---------- UDP implementation ----------
 class UDPHandler(SocketHandler):
     def __init__(self):
-        self.socket = None
+        self.socket = None # None since it's gonna be passed as launch file parameter
 
     def setup_server(self, host, port):
         try:
@@ -248,7 +248,7 @@ class ForcestickPublisher(Node):
     def timer_callback(self):
         frame = self.opencoroco.get_latest_frame()
         if frame is None:
-            returnp
+            return
 
         info = self.opencoroco.info
         # Builds the message based on the frame and the info byte
