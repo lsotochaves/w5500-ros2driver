@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-
 import rclpy
 from rclpy.node import Node
 from w5500_msg.msg import ForceF4
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from collections import deque, defaultdict
+from collections import defaultdict
 import threading
 
-WINDOW = 500  # Amount of data seen in plot window. Last 500 samples.
 SENSORS = [f"sensor_{i}" for i in range(1, 5)]
 CHANNELS = ["fx_my_1", "fy_mx_1", "fy_mx_2", "fx_my_2", "mz", "fz_1", "fz_2"]
-
-# Sensor names mapped to port numbers
 PORT_MAP = {"sensor_1": 5000, "sensor_2": 5001, "sensor_3": 5002, "sensor_4": 5003}
 
 
@@ -20,18 +16,18 @@ class MultiForceF4Plotter(Node):
     def __init__(self):
         super().__init__("multi_ForceF4_plotter")
 
-        # Generates a dequeue buffer for each channel of each sensor
-        self.buffers = defaultdict(lambda: {ch: deque() for ch in CHANNELS})
+        # Each sensor → dictionary of lists (no window limit)
+        self.buffers = defaultdict(lambda: {ch: [] for ch in CHANNELS})
 
-        # subscribe to all 4 sensor topics
         self.subs = []
         for s in SENSORS:
-            topic = f"/{s}/ForceF4"
+            topic = f"/{s}/Force"
             self.subs.append(
                 self.create_subscription(ForceF4, topic, self.make_callback(s), 10)
             )
+            self.get_logger().info(f"Subscribed to {topic}")
 
-    # Function in charge of adding data to the correct buffer position for each sensor.
+    # Append incoming data to correct sensor buffer
     def make_callback(self, sensor_name):
         def callback(msg: ForceF4):
             b = self.buffers[sensor_name]
@@ -49,16 +45,13 @@ def main():
     rclpy.init()
     node = MultiForceF4Plotter()
 
-    # Create one subplot per sensor (stacked vertically)
+    # ---- Matplotlib setup ----
     fig, axes = plt.subplots(len(SENSORS), 1, figsize=(8, 10), sharex=True)
-
     if len(SENSORS) == 1:
-        axes = [axes]  # ensure iterable
+        axes = [axes]
 
     lines = {}
-    #Initialize plots and lines for each sensor/channel
     for ax, sensor in zip(axes, SENSORS):
-        # title includes sensor name and port
         port = PORT_MAP.get(sensor, "?")
         ax.set_title(f"{sensor} (port {port})")
         ax.set_ylabel("ForceF4 Value")
@@ -71,12 +64,12 @@ def main():
 
     axes[-1].set_xlabel("Samples")
 
-    # Takes the latest values from each sensor and updates matplotlib Line2D object with new X and Y values.
-    def update(frame):
+    # ---- Animation update ----
+    def update(_):
         for sensor in SENSORS:
             buf = node.buffers[sensor]
             for ch in CHANNELS:
-                data = list(buf[ch])
+                data = buf[ch]
                 line = lines[(sensor, ch)]
                 line.set_data(range(len(data)), data)
 
@@ -86,10 +79,10 @@ def main():
 
         return lines.values()
 
-    # calls update repeatedly to change plot over time.
-    ani = FuncAnimation(fig, update, interval=20, blit=False) # redraw every 20ms; 50fps approx. Change if PC can't keep up.
+    # Real-time 20 ms update interval (≈50 fps)
+    ani = FuncAnimation(fig, update, interval=20, blit=False)
 
-    # spin ROS in background thread for concurrency in between ROS and matplotlib
+    # ---- Spin ROS in background ----
     ros_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     ros_thread.start()
 
