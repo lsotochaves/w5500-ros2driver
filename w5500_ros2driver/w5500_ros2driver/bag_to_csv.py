@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
 from rclpy.serialization import deserialize_message
-from w5500_msg.msg import Force
+from w5500_msg.msg import ForceF4
 import csv
 
 
@@ -81,7 +81,7 @@ def export_bag_to_csv(bag_path, output_dir='./csv_output'):
                 print(f"Created CSV for topic: {topic}")
             
             # Deserialize message
-            msg = deserialize_message(data, Force)
+            msg = deserialize_message(data, ForceF4)
 
             # Combinar sec + nanosec en segundos (float)
             msg_time = msg.stamp.sec + msg.stamp.nanosec * 1e-9

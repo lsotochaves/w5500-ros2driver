@@ -80,3 +80,11 @@ Thumbs.db
 *.coverage
 htmlcov/
 coverage.xml
+
+# ROS bag files
+ros2bag/
+rosbag2_*/
+*.db3
+
+#csv
+csv_output/
