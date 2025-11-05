@@ -3,19 +3,23 @@
 <package format="3">
   <name>w5500_ros2driver</name>
   <version>0.0.0</version>
-  <description>ROS2 node package for OpenCoRoCo: w5500_ros2driver</description>
-  <maintainer email="hongwenchen.k.c.w.90@gmail.com">Kevin Chen Wu</maintainer>
+  <description>ROS 2 node package for OpenCoRoCo: w5500_ros2driver</description>
 
+  <maintainer email="hongwenchen.k.c.w.90@gmail.com">Kevin Chen Wu</maintainer>
   <license>Apache License 2.0</license>
 
+  <!-- Core runtime dependencies -->
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
+  <!-- Custom messages -->
+  <exec_depend>w5500_msg</exec_depend>
+
+  <!-- Testing dependencies -->
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
-  <test_depend>w5500_msg</test_depend>
 
   <export>
     <build_type>ament_python</build_type>

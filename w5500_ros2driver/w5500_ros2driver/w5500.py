@@ -9,11 +9,11 @@ from ahrs.filters import Mahony
 from scipy.spatial.transform import Rotation as R
 import rclpy
 from rclpy.node import Node
-from w5500_msg.msg import Force as ForceSTM32F4
-from loadcell_msg.msg import Force as ForceSTM32F3 #Not implemented yet
+from w5500_msg.msg import ForceF4
+from w5500_msg.msg import ForceF3
 
 
-# Abtract class that defines socket communication interface
+# ---------- Abstract Socket Handler ----------
 class SocketHandler(ABC):
     @abstractmethod
     def setup_server(self, host, port):
@@ -28,7 +28,7 @@ class SocketHandler(ABC):
         raise NotImplementedError
 
 
-# ---------- UDP ----------
+# ---------- UDP Handler ----------
 class UDPHandler(SocketHandler):
     def __init__(self):
         self.socket = None
@@ -57,13 +57,13 @@ class UDPHandler(SocketHandler):
             self.socket = None
 
 
-# ---------- TCP ----------
+# ---------- TCP Handler ----------
 class TCPHandler(SocketHandler):
     def __init__(self):
         self.socket = None
         self.conn = None
         self.accepting = False
-        self._lock = threading.Lock() # To protect access to self.conn (avoid race conditions)
+        self._lock = threading.Lock()  # protects access to self.conn
 
     def setup_server(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -73,9 +73,8 @@ class TCPHandler(SocketHandler):
         self.socket.settimeout(1.0)
         print(f"[TCP] Server listening on {host}:{port}")
         self.accepting = True
-        threading.Thread(target=self._accept_connection, daemon=True).start() # Needs thread for non-blocking accept
+        threading.Thread(target=self._accept_connection, daemon=True).start()
 
-    # Accept connection
     def _accept_connection(self):
         while self.accepting:
             try:
@@ -89,7 +88,7 @@ class TCPHandler(SocketHandler):
             except Exception as e:
                 print(f"[TCP] Accept error: {e}")
                 break
-    # Receive data
+
     def receive(self):
         with self._lock:
             if self.conn is None:
@@ -110,7 +109,7 @@ class TCPHandler(SocketHandler):
             self.socket = None
 
 
-# Defines basic structure for microcontroller data processing
+# ---------- Base Processor ----------
 class BaseProcessor(ABC):
     INFO_BYTES = 1
     BYTES_PER_READING = 2
@@ -128,12 +127,11 @@ class BaseProcessor(ABC):
 
 # ---------- STM32F4 Processor ----------
 class STM32F4Processor(BaseProcessor):
-    AMOUNT_FINAL_DATA = 7 # fx_my_1, fy_mx_1, fy_mx_2, fx_my_2, mz, fz_1, fz_2
+    AMOUNT_FINAL_DATA = 7  # fx_my_1, fy_mx_1, fy_mx_2, fx_my_2, mz, fz_1, fz_2
     start = 1
-    end = start + AMOUNT_FINAL_DATA * BaseProcessor.BYTES_PER_READING # 1 + 7*2 = 15
+    end = start + AMOUNT_FINAL_DATA * BaseProcessor.BYTES_PER_READING
     MSG_TYPE = ForceSTM32F4
 
-    # Takes the frame and extracts info byte and scales the provided frame (last 15 bytes in total of package)
     def parse_frame(self, frame: bytes):
         info = frame[0]
         body = memoryview(frame)[self.start:self.end]
@@ -142,7 +140,6 @@ class STM32F4Processor(BaseProcessor):
         scaled = [(r & 0x0FFF) * scale for r in readings]
         return info, scaled
 
-    # Structure of ROS2 message for STM32F4
     def build_msg(self, node: Node, info: int, values: list[float]):
         msg = self.MSG_TYPE()
         msg.info = info
@@ -160,12 +157,12 @@ class STM32F4Processor(BaseProcessor):
 
 # ---------- STM32F3 Processor ----------
 class STM32F3Processor(BaseProcessor):
-    AMOUNT_FINAL_DATA = 10 # gyr(3), acc(3), mag(3), volts(1)
+    AMOUNT_FINAL_DATA = 10  # gyr(3), acc(3), mag(3), volts(1)
     start = 1
     end = start + AMOUNT_FINAL_DATA * BaseProcessor.BYTES_PER_READING
     MSG_TYPE = ForceSTM32F3
 
-    def __init__(self, opmode=1, sistema=0, plane=0): # Initialzed values will change with get_parameters on ForceStickPublisher
+    def __init__(self, opmode=1, sistema=0, plane=0):
         self.opmode = opmode
         self.sistema = sistema
         self.plane = plane
@@ -194,20 +191,19 @@ class STM32F3Processor(BaseProcessor):
         self.roll_offset = self.pitch_offset = self.yaw_offset = 0.0
         self.angle_offset_samples = 100
 
+        # Initial orientation per plane
         self.initial_quaternions = {
             0: np.array([0.0, 0.0, 0.0, 1.0]),
             1: np.array([-0.916, 0.0, 0.0, -0.4]),
             2: np.array([-1.0, 0.0, 0.0, 0.275]),
-            3: np.array([-0.607, 0.0, 0.0, 0.795])
+            3: np.array([-0.607, 0.0, 0.0, 0.795]),
         }
-
         if plane in self.initial_quaternions:
             self.q = self.initial_quaternions[plane]
 
         self.force_components = np.zeros(3)
         self.expected_rotated_force = np.zeros(3)
 
-    # Separates info byte and unpacks data from frame
     def parse_frame(self, frame: bytes):
         info = frame[0]
         body = memoryview(frame)[self.start:self.end]
@@ -218,6 +214,7 @@ class STM32F3Processor(BaseProcessor):
         if len(readings) != 10:
             return None
 
+        # Decode sensor data
         gyr = np.array(readings[0:3]) * self.gyr_const
         acc = np.array(readings[3:6]) * self.acc_const
         mag = np.array([
@@ -227,6 +224,7 @@ class STM32F3Processor(BaseProcessor):
         ])
         volts = (readings[9] & 0x0FFF) * self.scale_adc
 
+        # Mode 0: Voltage only
         if self.opmode == 0:
             msg = self.MSG_TYPE()
             msg.info = info
@@ -235,7 +233,7 @@ class STM32F3Processor(BaseProcessor):
             msg.rx = msg.ry = msg.rz = 0.0
             return msg
 
-        # Possible bug in here, needs fixing
+        # Offset initialization (first 100 samples)
         if not self.offset_ready:
             self.force_offset_samples.append(volts)
             if len(self.force_offset_samples) >= 100:
@@ -244,12 +242,15 @@ class STM32F3Processor(BaseProcessor):
                 print("[STM32F3] Force offset initialized.")
             return None
 
+        # Calibrated force
         force = ((volts - self.force_offset) * self.m) + self.b
 
+        # Orientation update
         self.q = self.mahony.updateMARG(self.q, gyr=gyr, acc=acc, mag=mag)
         rot = R.from_quat([self.q[1], self.q[2], self.q[3], self.q[0]])
         roll, pitch, yaw = rot.as_euler('xyz', degrees=False)
 
+        # IMU stabilization
         if self.stabilization_start is None:
             self.stabilization_start = time.time()
             print("[STM32F3] Stabilizing IMU...")
@@ -265,6 +266,7 @@ class STM32F3Processor(BaseProcessor):
                 self.angle_offset_init = True
                 print("[STM32F3] Orientation offsets set.")
 
+        # Compute forces after stabilization
         if self.angle_offset_init:
             self.force_components[0] = force * np.cos(pitch - self.pitch_offset) * np.cos(yaw - self.yaw_offset)
             self.force_components[1] = force * np.cos(pitch - self.pitch_offset) * np.sin(yaw - self.yaw_offset)
@@ -374,7 +376,7 @@ class ForcestickPublisher(Node):
         self.force_publisher.publish(msg)
 
 
-# ---------- MAIN ----------
+# ---------- Main ----------
 def main():
     rclpy.init()
     node = ForcestickPublisher(OpenCoRoCo)

@@ -17,13 +17,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Danny Gutiérrez Campos y Luis Diego Soto',
-    maintainer_email='dannyjgc07@gmail.com y ls.sotochaves@gmail.com',
-    description='ROS2 node package for OpenCoRoCo: w5500_ros2driver',
+    maintainer_email='dannyjgc07@gmail.com, ls.sotochaves@gmail.com',
+    description='ROS 2 node package for OpenCoRoCo (W5500 Ethernet driver and ForceStick integration).',
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        	'force_publisher = w5500_ros2driver.w5500:main',
+            'force_publisher = w5500_ros2driver.w5500:main',
             'multi_force_viewer = w5500_ros2driver.multi_force_viewer:main',
             'force_plotter = w5500_ros2driver.force_plotter:main',
             'csv_gen = w5500_ros2driver.csv_gen:main',
