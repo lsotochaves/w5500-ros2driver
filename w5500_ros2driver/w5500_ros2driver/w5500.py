@@ -123,6 +123,11 @@ class BaseProcessor(ABC):
     @abstractmethod
     def build_msg(self, node: Node, info: int, values: list[float]):
         raise NotImplementedError
+    
+    
+    def setup(self):
+        # Optional initialization step (only needed for STM32F3).
+        pass
 
 
 # ---------- STM32F4 Processor ----------
