@@ -28,12 +28,15 @@ if opmode == 1:
         except ValueError:
             print("Invalid input. Please enter a number (0 or 1).")
 
-    # --- Plane selection ---
+    # --- Plane selection (integer only) ---
     while True:
-        plane = input("Select plane [front/left/back/right]: ").strip().lower()
-        if plane in ["front", "left", "back", "right"]:
-            break
-        print("Invalid input. Please choose one of: front, left, back, right.")
+        try:
+            plane = int(input("Select plane (0: front / 1: left / 2: back / 3: right): "))
+            if 0 <= plane <= 3:
+                break
+            print("Invalid input. Please enter 0, 1, 2, or 3.")
+        except ValueError:
+            print("Invalid input. Please enter a number (0–3).")
 
 # --- Build launch command ---
 launch_cmd = [
@@ -41,7 +44,7 @@ launch_cmd = [
     f"opmode:={opmode}"
 ]
 
-# Only append the optional ones if they’re defined
+# Only append optional ones if defined
 if sistema is not None:
     launch_cmd.append(f"sistema:={sistema}")
 if plane is not None:
