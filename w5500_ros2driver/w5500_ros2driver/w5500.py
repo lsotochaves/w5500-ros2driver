@@ -130,7 +130,7 @@ class STM32F4Processor(BaseProcessor):
     AMOUNT_FINAL_DATA = 7  # fx_my_1, fy_mx_1, fy_mx_2, fx_my_2, mz, fz_1, fz_2
     start = 1
     end = start + AMOUNT_FINAL_DATA * BaseProcessor.BYTES_PER_READING
-    MSG_TYPE = ForceSTM32F4
+    MSG_TYPE = ForceF4
 
     def parse_frame(self, frame: bytes):
         info = frame[0]
@@ -160,7 +160,7 @@ class STM32F3Processor(BaseProcessor):
     AMOUNT_FINAL_DATA = 10  # gyr(3), acc(3), mag(3), volts(1)
     start = 1
     end = start + AMOUNT_FINAL_DATA * BaseProcessor.BYTES_PER_READING
-    MSG_TYPE = ForceSTM32F3
+    MSG_TYPE = ForceF3
 
     def __init__(self, opmode=1, sistema=0, plane=0):
         self.opmode = opmode
