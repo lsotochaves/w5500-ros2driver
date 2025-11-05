@@ -1,0 +1,9 @@
+builtin_interfaces/Time stamp
+uint8 info
+float64 fx
+float64 fy
+float64 fz
+float64 rx
+float64 ry
+float64 rz
+float64 force_z
