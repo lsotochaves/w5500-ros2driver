@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from w5500_msg.msg import Force
+from w5500_msg.msg import ForceF4
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from collections import deque, defaultdict
@@ -16,9 +16,9 @@ CHANNELS = ["fx_my_1", "fy_mx_1", "fy_mx_2", "fx_my_2", "mz", "fz_1", "fz_2"]
 PORT_MAP = {"sensor_1": 5000, "sensor_2": 5001, "sensor_3": 5002, "sensor_4": 5003}
 
 
-class MultiForcePlotter(Node):
+class MultiForceF4Plotter(Node):
     def __init__(self):
-        super().__init__("multi_force_plotter")
+        super().__init__("multi_ForceF4_plotter")
 
         # Generates a dequeue buffer for each channel of each sensor
         self.buffers = defaultdict(lambda: {ch: deque() for ch in CHANNELS})
@@ -26,14 +26,14 @@ class MultiForcePlotter(Node):
         # subscribe to all 4 sensor topics
         self.subs = []
         for s in SENSORS:
-            topic = f"/{s}/force"
+            topic = f"/{s}/ForceF4"
             self.subs.append(
-                self.create_subscription(Force, topic, self.make_callback(s), 10)
+                self.create_subscription(ForceF4, topic, self.make_callback(s), 10)
             )
 
     # Function in charge of adding data to the correct buffer position for each sensor.
     def make_callback(self, sensor_name):
-        def callback(msg: Force):
+        def callback(msg: ForceF4):
             b = self.buffers[sensor_name]
             b["fx_my_1"].append(msg.fx_my_1)
             b["fy_mx_1"].append(msg.fy_mx_1)
@@ -47,7 +47,7 @@ class MultiForcePlotter(Node):
 
 def main():
     rclpy.init()
-    node = MultiForcePlotter()
+    node = MultiForceF4Plotter()
 
     # Create one subplot per sensor (stacked vertically)
     fig, axes = plt.subplots(len(SENSORS), 1, figsize=(8, 10), sharex=True)
@@ -61,7 +61,7 @@ def main():
         # title includes sensor name and port
         port = PORT_MAP.get(sensor, "?")
         ax.set_title(f"{sensor} (port {port})")
-        ax.set_ylabel("Force Value")
+        ax.set_ylabel("ForceF4 Value")
 
         for ch in CHANNELS:
             (line,) = ax.plot([], [], label=ch, alpha=0.8)
