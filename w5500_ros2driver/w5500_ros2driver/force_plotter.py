@@ -21,11 +21,12 @@ class MultiForceF4Plotter(Node):
 
         self.subs = []
         for s in SENSORS:
-            topic = f"/{s}/Force"
+            topic = f"/{s}/force"
             self.subs.append(
                 self.create_subscription(ForceF4, topic, self.make_callback(s), 10)
             )
             self.get_logger().info(f"Subscribed to {topic}")
+
 
     # Append incoming data to correct sensor buffer
     def make_callback(self, sensor_name):
